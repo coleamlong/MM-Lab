@@ -3,6 +3,7 @@
 
 #define ALIGNMENT 16 /* The alignment of all payloads returned by umalloc */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
+#define EXTENDSIZE = 1024;
 
 /*
  * memory_block_t - Represents a block of memory managed by the heap. The 
@@ -13,10 +14,7 @@
  */
 typedef struct memory_block_struct {
     size_t block_size_alloc;
-    union next {
-        struct memory_block_struct *free;
-        struct memory_block_struct *allocated;
-    } next;
+    struct memory_block_struct *next;
 } memory_block_t;
 
 // Helper Functions, this may be editted if you change the signature in umalloc.c

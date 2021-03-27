@@ -1,88 +1,100 @@
+/*
+ * File: check_heap.c
+ * Name: Cole Amlong
+ * EID: CA34894
+ * 
+ * This file contains checks to make sure the custom implemented heap is valid.
+ * Checks include: 
+ *  1. Is every block in the free list marked as free?
+ *  2. Are all free blocks at the correct alignment?
+ *  3. All free block sizes are greater than 0?
+ *  4. Free list is in proper memory address order?
+ */
 
 #include "umalloc.h"
 
-//Place any variables needed here from umalloc.c as an extern.
+// A pointer to the beginning of the explicit free list.
 extern memory_block_t *free_head;
-extern memory_block_t *alloc_head;
 
 /*
  * 1.  Is every block in the free list marked as free?
  */
 bool all_free_marked() {
-    memory_block_t *current_free_block = free_head;
-
-    while (current_free_block) {
-        if (!is_allocated(current_free_block)) {
+    // traverse through free list
+    memory_block_t *block = free_head;
+    while (block) {
+        if (is_allocated(block)) {
+            // block is marked as allocated in the free list, failed
             return false;
         }
 
-        current_free_block = current_free_block->next.free;
+        block = get_next(block);
     }
 
+    // all free blocks checked, passed
     return true;
 }
 
 /*
- * 3.  Are all blocks at the correct alignment?
+ * 3.  Are all free blocks at the correct alignment?
  */
-bool all_aligned() {
-    // check free blocks
-    memory_block_t *current_free_block = free_head;
-
-    while (current_free_block) {
-        if (current_free_block->block_size_alloc % 16 != 0) {
+bool all_free_aligned() {
+    // traverse through free list
+    memory_block_t *block = free_head;
+    while (get_next(block)) {
+        if (get_size(block) % ALIGNMENT != 0) {
+            // block is not aligned, failed
             return false;
         }
        
-        current_free_block = current_free_block->next.free;
+        block = get_next(block);
     }
 
-    // check allocated blocks
-    memory_block_t *current_alloc_block = alloc_head;
-
-    while (current_alloc_block) {
-        if (current_alloc_block->block_size_alloc % 16 != 0) {
-            return false;
-        }
-
-        current_alloc_block = current_alloc_block->next.allocated;
-    }
-
+    // all free blocks checked, passed
     return true;
 }
 
 /*
- * 9.  If you are implementing coalescing, are there any 
- * contiguous free blocks that somehow escaped coa-lescing?
+ * CUSTOM: All free block sizes are greater than 0?
+ * This test, although simple, was critical for me in debugging.
  */
-bool all_coalesced() {
-    memory_block_t *current_free_block = free_head;
-
-    while (current_free_block) {
-        if (current_free_block->next.free == current_free_block + current_free_block->block_size_alloc && !is_allocated(current_free_block->next.free)) {
+bool all_size_positive() {
+    // traverse the free list
+    memory_block_t *block = free_head;
+    while (block) {
+        if (get_size(block) <= 0) {
+            // block size is <= 0, failed
             return false;
         }
-    }
 
+        block = get_next(block);
+    }
+    
+    // all blocks have a proper size, passed
     return true;
 }
 
 /*
- * 11.  If you are maintaining the free list in memory order, 
- * are you maintaining that order after inserting a freed block 
- * into the free list?
+ * 11.  Free list is in proper memory address order?
  */
 bool free_list_ordered() {
-    memory_block_t *current_free_block = free_head->next.free;
+    if (! get_next(free_head)) {
+        // list only has one element, therefore it is ordered
+        return true;
+    }
 
-    while (current_free_block->next.free) {
-        if (&current_free_block >= &current_free_block->next.free) {
+    // traverse through free list
+    memory_block_t *block = free_head;
+    while (get_next(block)) {
+        if (block >= get_next(block)) {
+            // next free block's memory address is before this block, free list is not ordered
             return false;
         }
 
-        current_free_block = current_free_block->next.free;
+        block = get_next(block);
     }
 
+    // all free blocks listed have been checked, free list is ordered
     return true;
 }
 
@@ -93,19 +105,18 @@ bool free_list_ordered() {
  * return code. Asserts are also a useful tool here.
  */
 int check_heap() {
-    // 1.  Is every block in the free list marked as free? Check 1
+    // CUSTOM: All free block sizes are greater than 0? Check 1
+    if (! all_size_positive()) {
+         return -1;
+    }
+
+    // 1.  Is every block in the free list marked as free? Check 2
     if (! all_free_marked()) {
         return -1;
     }
 
-    // 3.  Are all blocks at the correct alignment? Check 2
-    if (! all_aligned()) {
-        return -1;
-    }
-
-    // 9.  If you are implementing coalescing, are there any 
-    // contiguous free blocks that somehow escaped coa-lescing? Check 3
-    if (! all_coalesced()) {
+    // 3.  Are all blocks at the correct alignment? Check 3
+    if (! all_free_aligned()) {
         return -1;
     }
 
